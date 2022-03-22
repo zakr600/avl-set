@@ -4,9 +4,18 @@
 #include <cstdint>
 #include <set>
 
+/*
+ * An associative container that contains a sorted set of unique objects of type Key.
+ * Search, removal, and insertion operations have logarithmic complexity.
+ * AVL-tree implementation
+ */
+
 template<class T>
 class Set {
 private:
+    /*
+     * An utility class to represent a node in a tree
+     */
     struct Node {
         T key;
         Node* left_child;
