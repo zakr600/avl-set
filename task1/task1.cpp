@@ -18,19 +18,14 @@ private:
      */
     struct Node {
         T key;
-        Node* left_child;
-        Node* right_child;
-        Node *parent;
-        uint8_t height;
-        uint32_t size;
+        Node* left_child = nullptr;
+        Node* right_child = nullptr;
+        Node* parent = nullptr;
+        uint8_t height = 1;
+        uint32_t size = 1;
 
         Node(const T& key) {
             this->key = key;
-            left_child = nullptr;
-            right_child = nullptr;
-            parent = nullptr;
-            height = 1;
-            size = 1;
         }
 
         Node(const Node& ot) {
@@ -41,13 +36,178 @@ private:
             height = ot.height;
             size = ot.size;
         }
-
-        ~Node() {
-            delete left_child;
-            delete right_child;
-        };
     };
 
+public:
+    Set() {}
+
+    ~Set() {
+        Delete_tree(data_);
+    }
+
+    Set(const Set& ot) {
+        data_ = Copy_tree(data_, static_cast<Node*>(nullptr), ot.data_);
+    }
+
+    Set operator=(const Set& ot) {
+        Delete_tree(data_);
+        data_ = Copy_tree(data_, static_cast<Node*>(nullptr), ot.data_);
+        return *this;
+    }
+
+    template<typename iterator>
+    Set(iterator first, iterator last) {
+        for (auto it = first; it != last; ++it) {
+            insert(*it);
+        }
+    }
+
+    Set(std::initializer_list<T> elems) {
+        for (const T& el : elems) {
+            insert(el);
+        }
+    }
+
+    /*
+     * Gets count of elements in a tree
+     */
+    size_t size() const {
+        return GetSize(data_);
+    }
+
+    /*
+     * Checks if the tree is empty
+     */
+    bool empty() const {
+        return GetSize(data_) == 0;
+    }
+
+    /*
+     * Inserts selected node to a tree
+     */
+    void insert(const T& elem) {
+        data_ = Insert(data_, elem);
+    }
+
+    /*
+     * Erases selected node from a tree
+     */
+    void erase(const T& elem) {
+        data_ = Remove(data_, elem);
+    }
+
+    class iterator {
+    private:
+        Node* root;
+        bool end;
+    public:
+        iterator(): root(nullptr), end(true) {}
+
+        iterator(Node* root): root(root), end(root == nullptr) {}
+
+        iterator(Node* root, bool end): root(root), end(end) {}
+
+        iterator& operator++() {
+            Node* proot = root;
+            if (root->right_child != nullptr) {
+                root = root->right_child;
+                while (root->left_child != nullptr) {
+                    root = root->left_child;
+                }
+                return *this;
+            }
+            while (root->parent != nullptr && root==root->parent->right_child) {
+                root = root->parent;
+            }
+            if (root->parent == nullptr) {
+                root = proot;
+                end = true;
+            } else {
+                root = root->parent;
+            }
+            return *this;
+        }
+
+        iterator& operator--() {
+            if (end == true) {
+                end = false;
+                return *this;
+            }
+            if (root->left_child != nullptr) {
+                root = root->left_child;
+                while (root->right_child != nullptr) {
+                    root = root->right_child;
+                }
+                return *this;
+            }
+            while (root->parent != nullptr && root==root->parent->left_child) {
+                root = root->parent;
+            }
+            if (root->parent != nullptr) {
+                root = root->parent;
+            }
+            return *this;
+        }
+
+        iterator operator++(int) {
+            Node* proot = root;
+            ++(*this);
+            return iterator(proot);
+        }
+
+        iterator operator--(int) {
+            Node* proot = root;
+            --(*this);
+            return iterator(proot);
+        }
+
+        bool operator==(const iterator& ot) const {
+            return root == ot.root && end == ot.end;
+        }
+
+        bool operator!=(const iterator& ot) const {
+            return !(*this == ot);
+        }
+
+        const T& operator*() const {
+            return root->key;
+        }
+
+        const T* operator->() const {
+            return &root->key;
+        }
+    };
+
+    iterator begin() const {
+        if (empty()) {
+            return end();
+        } else {
+            return iterator(FindMin(data_));
+        }
+    }
+
+    iterator end() const {
+        return iterator(FindMax(data_), true);
+    }
+
+    /*
+     * Finds node with needed key and returns iterator to it
+     */
+    iterator find(const T& elem) const {
+        Node* root = Find(data_, elem);
+        return (root == nullptr ? end() : iterator(root));
+    }
+
+    /*
+     * This function find a node with minimum key, which in not less than x (like std::lower_bound)
+     * And returns iterator to it
+     */
+    iterator lower_bound(const T& elem) const {
+        Node* root = Lower_bound(data_, elem);
+        return (root == nullptr ? end() : iterator(root));
+    }
+
+private:
     /*
      * Gets the height of a tree
      */
@@ -256,6 +416,8 @@ private:
             root = Balance(root);
             return root;
         } else {
+            // We want to remove node root
+            // So let's merge it's left and right son
             Node* p = root->left_child;
             Node* q = root->right_child;
             DisconnectParents(p);
@@ -266,6 +428,9 @@ private:
             if (q == nullptr) {
                 return p;
             } else {
+                // Let's place the minimum node (a) in the subtree q to the top
+                // then it's left child would be nullptr
+                // so we can make a->left_child = p to merge p and q
                 Node* a = FindMin(q);
                 Node* pa = a->parent;
                 q = RemoveMin(q);
@@ -348,174 +513,17 @@ private:
         return root;
     }
 
+    /*
+     * An utility function to remove a subtree and free memory
+     */
+    void Delete_tree(Node* root) {
+        if (root == nullptr) {
+            return;
+        }
+        Delete_tree(root->left_child);
+        Delete_tree(root->right_child);
+        delete root;
+    }
+
     Node* data_ = nullptr;
-
-public:
-    Set() {}
-
-    ~Set() {
-        delete data_;
-    }
-
-    Set(const Set& ot) {
-        data_ = Copy_tree(data_, static_cast<Node*>(nullptr), ot.data_);
-    }
-
-    Set operator=(const Set& ot) {
-        delete data_;
-        data_ = Copy_tree(data_, static_cast<Node*>(nullptr), ot.data_);
-        return *this;
-    }
-
-    template<typename iterator>
-    Set(iterator first, iterator last) {
-        for (auto it = first; it != last; ++it) {
-            insert(*it);
-        }
-    }
-
-    Set(std::initializer_list<T> elems) {
-        for (const T& el : elems) {
-            insert(el);
-        }
-    }
-
-    /*
-     * Gets count of elements in a tree
-     */
-    size_t size() const {
-        return GetSize(data_);
-    }
-
-    /*
-     * Checks if the tree is empty
-     */
-    bool empty() const {
-        return GetSize(data_) == 0;
-    }
-
-    /*
-     * Inserts selected node to a tree
-     */
-    void insert(const T& elem) {
-        data_ = Insert(data_, elem);
-    }
-
-    /*
-     * Erases selected node from a tree
-     */
-    void erase(const T& elem) {
-        data_ = Remove(data_, elem);
-    }
-
-    class iterator {
-    private:
-        Node* root;
-        bool end;
-    public:
-        iterator(): root(nullptr), end(true) {}
-
-        iterator(Node* root): root(root), end(root == nullptr) {}
-
-        iterator(Node* root, bool end): root(root), end(end) {}
-
-        iterator& operator++() {
-            Node* proot = root;
-            if (root->right_child != nullptr) {
-                root = root->right_child;
-                while (root->left_child != nullptr) {
-                    root = root->left_child;
-                }
-                return *this;
-            }
-            while (root->parent != nullptr && root==root->parent->right_child) {
-                root = root->parent;
-            }
-            if (root->parent == nullptr) {
-                root = proot;
-                end = true;
-            } else {
-                root = root->parent;
-            }
-            return *this;
-        }
-
-        iterator& operator--() {
-            if (end == true) {
-                end = false;
-                return *this;
-            }
-            if (root->left_child != nullptr) {
-                root = root->left_child;
-                while (root->right_child != nullptr) {
-                    root = root->right_child;
-                }
-                return *this;
-            }
-            while (root->parent != nullptr && root==root->parent->left_child) {
-                root = root->parent;
-            }
-            if (root->parent != nullptr) {
-                root = root->parent;
-            }
-            return *this;
-        }
-
-        iterator operator++(int) {
-            Node* proot = root;
-            ++(*this);
-            return iterator(proot);
-        }
-
-        iterator operator--(int) {
-            Node* proot = root;
-            --(*this);
-            return iterator(proot);
-        }
-
-        bool operator==(const iterator& ot) const {
-            return root == ot.root && end == ot.end;
-        }
-
-        bool operator!=(const iterator& ot) const {
-            return !(*this == ot);
-        }
-
-        const T& operator*() const {
-            return root->key;
-        }
-
-        const T* operator->() const {
-            return &root->key;
-        }
-    };
-
-    iterator begin() const {
-        if (empty()) {
-            return end();
-        } else {
-            return iterator(FindMin(data_));
-        }
-    }
-
-    iterator end() const {
-        return iterator(FindMax(data_), true);
-    }
-
-    /*
-     * Finds node with needed key and returns iterator to it
-     */
-    iterator find(const T& elem) const {
-        Node* root = Find(data_, elem);
-        return (root == nullptr ? end() : iterator(root));
-    }
-
-    /*
-     * This function find a node with minimum key, which in not less than x (like std::lower_bound)
-     * And returns iterator to it
-     */
-    iterator lower_bound(const T& elem) const {
-        Node* root = Lower_bound(data_, elem);
-        return (root == nullptr ? end() : iterator(root));
-    }
 };
