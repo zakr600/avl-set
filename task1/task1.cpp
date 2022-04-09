@@ -28,22 +28,18 @@ private:
             this->key = key;
         }
 
-        Node(const Node& ot) {
-            key = ot.key;
-            left_child = ot.left_child;
-            right_child = ot.right_child;
-            parent = ot.parent;
-            height = ot.height;
-            size = ot.size;
+        Node(const Node& other) {
+            key = other.key;
+            left_child = other.left_child;
+            right_child = other.right_child;
+            parent = other.parent;
+            height = other.height;
+            size = other.size;
         }
     };
 
 public:
     Set() {}
-
-    ~Set() {
-        Delete_tree(data_);
-    }
 
     Set(const Set& ot) {
         data_ = Copy_tree(data_, static_cast<Node*>(nullptr), ot.data_);
@@ -66,6 +62,13 @@ public:
         for (const T& el : elems) {
             insert(el);
         }
+    }
+
+    /*
+     * Destructor
+     */
+    ~Set() {
+        Delete_tree(data_);
     }
 
     /*
@@ -97,11 +100,8 @@ public:
     }
 
     class iterator {
-    private:
-        Node* root;
-        bool end;
     public:
-        iterator(): root(nullptr), end(true) {}
+        iterator() {}
 
         iterator(Node* root): root(root), end(root == nullptr) {}
 
@@ -176,6 +176,10 @@ public:
         const T* operator->() const {
             return &root->key;
         }
+
+    private:
+        Node* root = nullptr;
+        bool end = true;
     };
 
     iterator begin() const {
@@ -425,9 +429,7 @@ private:
             root->left_child = nullptr;
             root->right_child = nullptr;
             delete root;
-            if (q == nullptr) {
-                return p;
-            } else {
+            if (q != nullptr) {
                 // Let's place the minimum node (a) in the subtree q to the top
                 // then it's left child would be nullptr
                 // so we can make a->left_child = p to merge p and q
@@ -446,6 +448,8 @@ private:
                 PullHeight(pa);
                 a = Balance(a);
                 return a;
+            } else {
+                return p;
             }
         }
     }
